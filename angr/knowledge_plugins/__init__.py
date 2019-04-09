@@ -8,3 +8,4 @@ from .labels import Labels
 from .cfg import CFGManager
 from .xrefs import XRefManager
 from .plugin import KnowledgeBasePlugin
+from .clinic import Clinic
