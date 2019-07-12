@@ -39,13 +39,14 @@ class SimSymbolizer(SimStatePlugin): #pylint:disable=abstract-method
 
         expr = self.state.solver.eval_one(self.state.inspect.mem_write_expr)
         if self._should_symbolize(expr):
-            print("asdf", self.state.inspect.mem_write_expr, self.state.inspect.mem_write_length)
             self.state.inspect.mem_write_expr = self._preconstrain('symbolic_ptr_mem', expr)
 
     def _reg_write_callback(self):
         if not isinstance(self.state.inspect.reg_write_expr, int) and self.state.inspect.reg_write_expr.symbolic:
             return
         if not isinstance(self.state.inspect.reg_write_length, int) and self.state.inspect.reg_write_length.symbolic:
+            return
+        if self.state.inspect.reg_write_offset == self.state.arch.ip_offset:
             return
 
         length = self.state.solver.eval_one(self.state.inspect.reg_write_length)
@@ -54,7 +55,6 @@ class SimSymbolizer(SimStatePlugin): #pylint:disable=abstract-method
 
         expr = self.state.solver.eval_one(self.state.inspect.reg_write_expr)
         if self._should_symbolize(expr):
-            print("fdsa", self.state.inspect.reg_write_expr, self.state.inspect.reg_write_length)
             self.state.inspect.reg_write_expr = self._preconstrain('symbolic_ptr_reg', expr)
 
     def init_state(self):
@@ -71,7 +71,7 @@ class SimSymbolizer(SimStatePlugin): #pylint:disable=abstract-method
         self.state.inspect.make_breakpoint('memory_page_map', when=self.state.inspect.BP_BEFORE, action=_page_map_cb)
         self.state.inspect.make_breakpoint('mem_write', when=self.state.inspect.BP_BEFORE, action=_mem_write_cb)
         #self.state.inspect.make_breakpoint('mem_read', when=self.state.inspect.BP_BEFORE, action=_mem_read_cb)
-        self.state.inspect.make_breakpoint('reg_write', when=self.state.inspect.BP_BEFORE, action=_reg_write_cb)
+        #self.state.inspect.make_breakpoint('reg_write', when=self.state.inspect.BP_BEFORE, action=_reg_write_cb)
         #self.state.inspect.make_breakpoint('reg_read', when=self.state.inspect.BP_BEFORE, action=_reg_read_cb)
 
     def set_symbolization_for_all_pages(self):
@@ -129,6 +129,9 @@ class SimSymbolizer(SimStatePlugin): #pylint:disable=abstract-method
 
             replaced = False
             for offset in range(0, remaining_len, self.state.arch.bytes):
+                if storage is self.state.registers and aligned_base + offset == self.state.arch.ip_offset:
+                    continue
+
                 word = data[offset:offset+self.state.arch.bytes]
                 if len(word) < self.state.arch.bytes:
                     replacement_parts.append(claripy.BVV(word))
@@ -156,12 +159,13 @@ class SimSymbolizer(SimStatePlugin): #pylint:disable=abstract-method
                 storage.mem.replace_memory_object(mo, replacement_content)
 
     def resymbolize(self):
-        for i, p_id in enumerate(self.state.registers.mem._pages):
-            if i % 100 == 0:
-                l.debug("%s/%s register pages symbolized", i, len(self.state.registers.mem._pages))
-            addr_start = self.state.registers.mem._page_addr(p_id)
-            length = self.state.registers.mem._page_size
-            self._resymbolize_region(self.state.registers, addr_start, length)
+        #for i, p_id in enumerate(self.state.registers.mem._pages):
+        #   if i % 100 == 0:
+        #       l.debug("%s/%s register pages symbolized", i, len(self.state.registers.mem._pages))
+        #   addr_start = self.state.registers.mem._page_addr(p_id)
+        #   length = self.state.registers.mem._page_size
+        #   self._resymbolize_region(self.state.registers, addr_start, length)
+        #self._resymbolize_region(self.state.registers, self.state.arch.sp_offset, 8)
 
         for i, p_id in enumerate(self.state.memory.mem._pages):
             if i % 100 == 0:
